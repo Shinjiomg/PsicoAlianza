@@ -18,10 +18,8 @@ use App\Http\Controllers\CocktailController;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/cocktails', [CocktailController::class, 'store']);
-    Route::get('/cocktails', [CocktailController::class, 'index']);
-    Route::get('/cocktails/{cocktail}', [CocktailController::class, 'show']);
-    Route::put('/cocktails/{cocktail}', [CocktailController::class, 'update']);
-    Route::delete('/cocktails/{cocktail}', [CocktailController::class, 'destroy']);
-});
+Route::post('/cocktails', [CocktailController::class, 'store']);
+Route::get('/cocktails', [CocktailController::class, 'index']);
+Route::get('/cocktails/{cocktail}', [CocktailController::class, 'show']);
+Route::put('/cocktails/{cocktail}', [CocktailController::class, 'update']);
+Route::delete('/cocktails/{cocktail}', [CocktailController::class, 'destroy']);
