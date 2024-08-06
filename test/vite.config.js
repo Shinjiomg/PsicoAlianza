@@ -17,4 +17,13 @@ export default defineConfig({
             },
         }),
     ],
+    server: {
+        proxy: {
+            '/api': {
+                target: 'https://www.thecocktaildb.com',
+                changeOrigin: true,
+                rewrite: (path) => path.replace(/^\/api/, ''),
+            },
+        },
+    },
 });

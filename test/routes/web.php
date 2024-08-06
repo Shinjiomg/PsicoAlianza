@@ -25,9 +25,15 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/cocktails', function () {
+    return Inertia::render('Cocktails');
+})->middleware(['auth', 'verified'])->name('cocktails');
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/cocktail-manager', function () {
+        return Inertia::render('CocktailManager');
+    })->name('cocktail-manager');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -35,4 +41,4 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
