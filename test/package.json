@@ -18,6 +18,9 @@
         "vue": "^3.2.41"
     },
     "dependencies": {
-        "jquery": "^3.7.1"
+        "datatables.net": "^2.1.3",
+        "datatables.net-dt": "^2.1.3",
+        "jquery": "^3.7.1",
+        "sweetalert2": "^11.12.4"
     }
 }

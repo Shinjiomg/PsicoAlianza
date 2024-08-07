@@ -3,57 +3,91 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
 
 const cocktails = ref([]);
-const selectedCocktail = ref(null);
-const isEditing = ref(false);
+const filteredCocktails = ref([]);
+const searchQuery = ref('');
 
-// Fetch all cocktails from the API
 const fetchCocktails = async () => {
     try {
         const response = await axios.get('/api/cocktails');
         cocktails.value = response.data;
+        filteredCocktails.value = response.data;
     } catch (error) {
         console.error('Error fetching cocktails:', error);
     }
 };
 
-// Delete a cocktail
+const filterCocktails = () => {
+    if (searchQuery.value) {
+        filteredCocktails.value = cocktails.value.filter(cocktail =>
+            cocktail.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+        );
+    } else {
+        filteredCocktails.value = cocktails.value;
+    }
+};
+
 const deleteCocktail = async (id) => {
     try {
-        await axios.delete(`/api/cocktails/${id}`);
-        fetchCocktails(); // Refresh the list
+        const result = await Swal.fire({
+            title: 'Are you sure?',
+            text: 'You won\'t be able to revert this!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Yes, delete it!'
+        });
+
+        if (result.isConfirmed) {
+            await axios.delete(`/api/cocktails/${id}`);
+            fetchCocktails();
+            Swal.fire('Deleted!', 'Cocktail has been deleted.', 'success');
+        }
     } catch (error) {
-        console.error('Error deleting cocktail:', error);
+        Swal.fire('Error!', 'There was an error deleting the cocktail.', 'error');
     }
 };
 
-// Initialize the form for editing a cocktail
-const initForm = () => {
-    selectedCocktail.value = { id: null, name: '', image_url: '', category: '', alcoholic: '' };
-    isEditing.value = false;
-};
+const showEditForm = async (cocktail) => {
+    const { value: formValues } = await Swal.fire({
+        title: 'Edit Cocktail',
+        html: `
+            <form id="edit-form">
+                <div class="mb-4">
+                    <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
+                    <input id="name" class="mt-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm w-full" type="text" value="${cocktail.name}" required />
+                </div>
+                <div class="mb-4">
+                    <label for="image_url" class="block text-sm font-medium text-gray-700">Image URL</label>
+                    <input id="image_url" class="mt-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm w-full" type="text" value="${cocktail.image_url}" />
+                </div>
+            </form>
+        `,
+        focusConfirm: false,
+        preConfirm: () => {
+            const name = Swal.getPopup().querySelector('#name').value;
+            const image_url = Swal.getPopup().querySelector('#image_url').value;
+            return { name, image_url };
+        },
+        confirmButtonText: 'Save',
+        confirmButtonColor: '#3085d6',
+        showCancelButton: true,
+        cancelButtonText: 'Cancel',
+        cancelButtonColor: '#d33',
+    });
 
-// Edit a cocktail
-const editCocktail = (cocktail) => {
-    selectedCocktail.value = { ...cocktail };
-    isEditing.value = true;
-};
-
-// Save a cocktail (update)
-const saveCocktail = async () => {
-    try {
-        await axios.put(`/api/cocktails/${selectedCocktail.value.id}`, selectedCocktail.value);
-        fetchCocktails();
-        initForm();
-    } catch (error) {
-        console.error('Error saving cocktail:', error);
+    if (formValues) {
+        try {
+            await axios.put(`/api/cocktails/${cocktail.id}`, formValues);
+            fetchCocktails();
+            Swal.fire('Updated!', 'Cocktail has been updated.', 'success');
+        } catch (error) {
+            Swal.fire('Error!', 'There was an error updating the cocktail.', 'error');
+        }
     }
-};
-
-// Close the form without saving
-const cancelEdit = () => {
-    initForm();
 };
 
 onMounted(() => {
@@ -64,75 +98,62 @@ onMounted(() => {
 <template>
 
     <Head title="Cocktail Manager" />
-
     <AuthenticatedLayout>
-        <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Manage Cocktails</h2>
-        </template>
-
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div class="py-9">
+            <div class="mx-4 sm:mx-6 lg:mx-8">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
                     <div class="p-6 text-gray-900">
-                        <!-- Form for editing cocktails -->
-                        <div v-if="isEditing" class="mb-8">
-                            <h3 class="text-lg font-semibold mb-4 text-center">Edit Cocktail</h3>
-                            <form @submit.prevent="saveCocktail" class="space-y-6 max-w-lg mx-auto">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Name</label>
-                                    <input v-model="selectedCocktail.name" type="text" required
-                                        class="mt-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Image URL</label>
-                                    <input v-model="selectedCocktail.image_url" type="text"
-                                        class="mt-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Category</label>
-                                    <input v-model="selectedCocktail.category" type="text"
-                                        class="mt-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm" />
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Alcoholic</label>
-                                    <input v-model="selectedCocktail.alcoholic" type="text"
-                                        class="mt-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm" />
-                                </div>
-                                <div class="flex gap-4 justify-center">
-                                    <button type="submit"
-                                        class="bg-blue-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-blue-700 transition">Save</button>
-                                    <button @click="cancelEdit" type="button"
-                                        class="bg-gray-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-gray-700 transition">Cancel</button>
-                                </div>
-                            </form>
+                        <div class="mb-4">
+                            <input v-model="searchQuery" @input="filterCocktails" type="text" placeholder="Search..."
+                                class="px-4 py-2 border border-gray-300 rounded-full shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full lg:w-2/3 mx-auto sm:text-sm" />
                         </div>
 
-                        <!-- List of cocktails -->
+                        <div v-if="filteredCocktails.length">
+                            <div class="overflow-x-auto h-[34rem] lg:h-[38rem]">
+                                <table class="divide-gray-200 w-2/3 mx-auto">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Image</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Name</th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <tr v-for="cocktail in filteredCocktails" :key="cocktail.id">
+                                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                                <img :src="cocktail.image_url" alt="Cocktail Image"
+                                                    class="w-16 h-16 rounded-lg object-cover mx-auto" />
+                                            </td>
+                                            <td
+                                                class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-center">
+                                                {{ cocktail.name }}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-center">
+                                                <button @click="showEditForm(cocktail)"
+                                                    class="bg-transparent border border-blue-400 text-blue-400 px-4 py-2 rounded-lg shadow-md hover:bg-blue-50 transition">Edit</button>
+                                                <button @click="deleteCocktail(cocktail.id)"
+                                                    class="bg-transparent border border-red-400 text-red-400 px-4 py-2 rounded-lg shadow-md hover:bg-red-50 transition ml-2">Delete</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="flex justify-center mt-4 items-center">
+                                <button
+                                    class="bg-transparent border border-gray-300 text-gray-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-50 transition">Previous</button>
+                                <span class="mx-4 text-sm text-gray-600">Showing {{ filteredCocktails.length }} of
+                                    {{ cocktails.length }} cocktails</span>
+                                <button
+                                    class="bg-transparent border border-gray-300 text-gray-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-50 transition">Next</button>
+                            </div>
+                        </div>
                         <div v-else>
-                            <div v-if="cocktails.length">
-                                <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <li v-for="cocktail in cocktails" :key="cocktail.id"
-                                        class="border p-4 rounded-lg shadow-md bg-white flex flex-col items-center">
-                                        <img :src="cocktail.image_url" alt="Cocktail Image"
-                                            class="w-32 h-32 mb-4 rounded-lg object-cover shadow-md" />
-                                        <h3 class="text-lg font-semibold mb-2">{{ cocktail.name }}</h3>
-                                        <p class="text-sm text-gray-600"><strong>Category:</strong> {{ cocktail.category
-                                            }}</p>
-                                        <p class="text-sm text-gray-600"><strong>Alcoholic:</strong> {{
-                                            cocktail.alcoholic }}
-                                        </p>
-                                        <div class="flex gap-4 mt-4">
-                                            <button @click="editCocktail(cocktail)"
-                                                class="bg-blue-400 text-white px-4 py-2 rounded-full shadow-md hover:bg-blue-700 transition">Edit</button>
-                                            <button @click="deleteCocktail(cocktail.id)"
-                                                class="bg-red-400 text-white px-4 py-2 rounded-full shadow-md hover:bg-red-700 transition">Delete</button>
-                                        </div>
-                                    </li>
-                                </ul>
-                            </div>
-                            <div v-else>
-                                <p class="text-gray-600 text-center">No cocktails available.</p>
-                            </div>
+                            <p class="text-gray-600 text-center">No cocktails available.</p>
                         </div>
                     </div>
                 </div>
@@ -142,9 +163,20 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* Custom Styles */
-button:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+thead {
+    background-color: #f9fafb;
+}
+
+tbody tr:hover {
+    background-color: #f3f4f6;
+}
+
+button {
+    font-size: 0.875rem;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+button:hover {
+    transform: scale(1.05);
 }
 </style>
